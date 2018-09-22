@@ -1,0 +1,1 @@
+set(LINKER_SCRIPT "i386/pc/linker.ld")

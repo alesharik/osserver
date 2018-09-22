@@ -1,0 +1,4 @@
+#ifndef OSSERVER_STUB_H
+#define OSSERVER_STUB_H
+
+#endif //OSSERVER_STUB_H
