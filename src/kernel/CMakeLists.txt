@@ -17,12 +17,12 @@ function(load_profile ISA PLATFORM)
     set(ISA_ASM_FLAGS ${ISA_ASM_FLAGS} PARENT_SCOPE)
 endfunction(load_profile)
 
-file(GLOB INCLUDE_SRCS "include/*.c" "include/*.h")
+file(GLOB INCLUDE_SRCS "include/**/*.c" "include/**/*.h" "include/*.c" "include/*.h" )
 include_directories(include)
 
 load_profile("${TARGET_PROFILE}" "pc")
 
-add_executable(osserver ${INCLUDE_SRCS} ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS})
+add_executable(osserver ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
 
 set(CMAKE_ASM-ATT_COMPILE_OBJECT "<CMAKE_ASM-ATT_COMPILER> ${ISA_ASM_FLAGS} ${PLATFORM_ASM_FLAGS} -o <OBJECT> <SOURCE>")
 set(CMAKE_C_FLAGS "${CMP_FLAGS} ${ISA_C_FLAGS} ${PLATFORM_C_FLAGS}" CACHE STRING "" FORCE)

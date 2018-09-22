@@ -48,8 +48,8 @@ int16_t nmi_status(void) {
 bool nmi_critical(void) {
     int16_t status = nmi_status();
     return ((status | WATCHDOG_TIMER_STATUS) == WATCHDOG_TIMER_STATUS)
-        || ((status | CHANNEL_CHECK) == CHANNEL_CHECK)
-        || ((status | PARITY_CHECK) == PARITY_CHECK);
+           || ((status | CHANNEL_CHECK) == CHANNEL_CHECK)
+           || ((status | PARITY_CHECK) == PARITY_CHECK);
 }
 
 #endif //OSSERVER_NMI_H
