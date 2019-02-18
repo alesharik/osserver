@@ -8,5 +8,5 @@ set(CMAKE_C_SIZEOF_DATA_PTR 4)
 
 set(CMP_FLAGS "-O2 -g -ffreestanding -fbuiltin -Wall -Wextra -std=gnu99 -msse")
 set(TARGET_PROFILE "i386")
-set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} -nostdlib)
-
+set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-nostdlib -nostdinc")
+set(CMAKE_ASM_NASM_FLAGS ${CMAKE_ASM_NASM_FLAGS} -felf32)

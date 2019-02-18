@@ -1,7 +1,7 @@
 function(load_profile ISA PLATFORM)
     # Obtain sources for the ISA
     file(GLOB ISA_SRCS "${ISA}/*.c" "${ISA}/*.s")
-    file(GLOB PLATFORM_SRCS "${ISA}/${PLATFORM}/*.c" "${ISA}/${PLATFORM}/*.s")
+    file(GLOB PLATFORM_SRCS "${ISA}/${PLATFORM}/*.c" "${ISA}/${PLATFORM}/*.asm")
 
     # Load flags associated with ISA and Profile
     include("${ISA}/flags.cmake")
@@ -18,16 +18,24 @@ function(load_profile ISA PLATFORM)
 endfunction(load_profile)
 
 file(GLOB INCLUDE_SRCS "include/**/*.c" "include/**/*.h" "include/*.c" "include/*.h" )
+
 include_directories(include)
+
+file(GLOB GENERIC_SRCS "generic/**/*.c" "generic/**/*.h" "generic/*.c" "generic/*.h" )
 
 load_profile("${TARGET_PROFILE}" "pc")
 
-add_executable(osserver ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
+project(kernel)
+add_executable(kernel ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
+add_library(libkernel SHARED ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
 
-set(CMAKE_ASM-ATT_COMPILE_OBJECT "<CMAKE_ASM-ATT_COMPILER> ${ISA_ASM_FLAGS} ${PLATFORM_ASM_FLAGS} -o <OBJECT> <SOURCE>")
 set(CMAKE_C_FLAGS "${CMP_FLAGS} ${ISA_C_FLAGS} ${PLATFORM_C_FLAGS}" CACHE STRING "" FORCE)
-set_target_properties(osserver PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${ISA_LINKER_FLAGS} ${PLATFORM_LINKER_FLAGS}")
-add_custom_command(TARGET osserver POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy osserver ${PROJECT_SOURCE_DIR}/out/osserver.bin
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        )
+set_target_properties(kernel PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${ISA_LINKER_FLAGS} ${PLATFORM_LINKER_FLAGS}")
+set_target_properties(libkernel PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${ISA_LINKER_FLAGS} ${PLATFORM_LINKER_FLAGS}")
+
+add_custom_command(TARGET kernel POST_BUILD
+        COMMAND ${CMAKE_SOURCE_DIR}/build/build.sh ${CMAKE_BINARY_DIR}/out ${CMAKE_CURRENT_BINARY_DIR}/kernel
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
+
+message("Built ISO file with grub will be located in ${CMAKE_BINARY_DIR}/out")
+message("Built bin file will be located in ${CMAKE_BINARY_DIR}/out")
