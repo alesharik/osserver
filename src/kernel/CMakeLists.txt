@@ -17,17 +17,17 @@ function(load_profile ISA PLATFORM)
     set(ISA_ASM_FLAGS ${ISA_ASM_FLAGS} PARENT_SCOPE)
 endfunction(load_profile)
 
-file(GLOB INCLUDE_SRCS "include/**/*.c" "include/**/*.h" "include/*.c" "include/*.h" )
+file(GLOB_RECURSE INCLUDE_SRCS "include/**/*.c" "include/**/*.h" "include/*.c" "include/*.h" )
 
 include_directories(include)
 
-file(GLOB GENERIC_SRCS "generic/**/*.c" "generic/**/*.h" "generic/*.c" "generic/*.h" )
+file(GLOB_RECURSE GENERIC_SRCS "generic/**/*.c" "generic/**/*.h" "generic/*.c" "generic/*.h" )
 
 load_profile("${TARGET_PROFILE}" "pc")
 
 project(kernel)
-add_executable(kernel ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
-add_library(libkernel SHARED ${FIRST_SRCS} ${PLATFORM_SRCS} ${ISA_SRCS} ${GENERIC_SRCS} ${INCLUDE_SRCS})
+add_executable(kernel ${FIRST_SRCS} ${INCLUDE_SRCS} ${GENERIC_SRCS} ${ISA_SRCS} ${PLATFORM_SRCS})
+add_library(libkernel SHARED ${FIRST_SRCS} ${INCLUDE_SRCS} ${GENERIC_SRCS} ${ISA_SRCS} ${PLATFORM_SRCS})
 
 set(CMAKE_C_FLAGS "${CMP_FLAGS} ${ISA_C_FLAGS} ${PLATFORM_C_FLAGS}" CACHE STRING "" FORCE)
 set_target_properties(kernel PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${ISA_LINKER_FLAGS} ${PLATFORM_LINKER_FLAGS}")
