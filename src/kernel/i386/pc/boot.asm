@@ -1,35 +1,31 @@
 %include 'multiboot.asm'
+FLAGS equ MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_VIDEO_MODE
 
 section .multiboot
+align 4
 multiboot_header:
-    align 8
-	dd MULTIBOOT2_HEADER_MAGIC
-	dd MULTIBOOT_ARCHITECTURE_I386
-	dd multiboot_header_end - multiboot_header
-	dd -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT_ARCHITECTURE_I386 + (multiboot_header_end - multiboot_header))
+	dd MULTIBOOT_HEADER_MAGIC
+	dd FLAGS
+	dd -(MULTIBOOT_HEADER_MAGIC + FLAGS)
 
-address_tag_start:
-	align 8
-    dw MULTIBOOT_HEADER_TAG_ADDRESS
-    dw MULTIBOOT_HEADER_TAG_OPTIONAL
-    dd address_tag_end - address_tag_start
-    dd multiboot_header ; header start
-    dd _text_start ; data sector start
-    dd _end ; Data sector end
-    dd stack_top ; BSS sector end
-address_tag_end:
-entry_address_tag_start:
-    align 8
-    dw MULTIBOOT_HEADER_TAG_ENTRY_ADDRESS
-    dw MULTIBOOT_HEADER_TAG_OPTIONAL
-    dd entry_address_tag_end - entry_address_tag_start
+    dd multiboot_header
+	dd _text_start
+	dd _test_end
+    dd stack_bottom
     dd _start
-entry_address_tag_end:
-    align 8
-    dw MULTIBOOT_HEADER_TAG_END
-    dw 0
-    dd 8
+    dd 1 ; Text mode
+    dd 720 ; Screen width
+    dd 480 ; Screen height
+    dd 32 ; Pixel depth
+
 multiboot_header_end:
+
+section .bss
+align 16
+stack_bottom:
+resb 16384 ; 16 KiB
+stack_top:
+
 ; The linker script specifies _start as the entry point to the kernel and the
 ; bootloader will jump to this position once the kernel has been loaded. It
 ; doesn't make sense to return from this function as the bootloader is gone.
@@ -71,6 +67,8 @@ _start:
 	; stack since (pushed 0 bytes so far) and the alignment is thus
 	; preserved and the call is well defined.
         ; note, that if you are building on Windows, C functions may have "_" prefix in assembly: _kernel_main
+    push ebx
+    push eax
 	extern kernel_main
 	call kernel_main
  
@@ -88,10 +86,4 @@ _start:
 .hang:	hlt
 	jmp .hang
 .end:
-_end:
-
-section .bss
-align 16
-stack_bottom:
-resb 16384 ; 16 KiB
-stack_top:
+_test_end:

@@ -10,15 +10,26 @@ SECTIONS
 	   loaded at by the bootloader. */
 	. = 1M;
 
-	.boot BLOCK(4K) : ALIGN(4K)
-	{
-	    *(.multiboot)
-    }
-
+	/* First put the multiboot header, as it is required to be put very early
+	   early in the image or the bootloader won't recognize the file format.
+	   Next we'll put the .text section. */
 	.text BLOCK(4K) : ALIGN(4K)
 	{
-	    *(.text)
-    }
+		*(.multiboot)
+		*(.text)
+	}
+
+	/* Make sure the GNU notes information is placed after .text. Failure to
+	   to do so may push the GRUB multiboot information beyond the first 8k
+	   and GRUB will not identify this kernel as multiboot capable.
+	   Alternative to this is to compile the final binary with this linker
+	   option to exclude this unqiue header:
+	   -Wl,--build-id=none */
+
+	.note.gnu.build-id BLOCK(4K) : ALIGN(4K)
+	{
+		*(.note.gnu.build-id)
+	}
 
 	/* Read-only data. */
 	.rodata BLOCK(4K) : ALIGN(4K)

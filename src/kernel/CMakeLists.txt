@@ -34,7 +34,7 @@ set_target_properties(kernel PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${I
 set_target_properties(libkernel PROPERTIES LINK_FLAGS "-T ${PLATFORM_LAYOUT} -N ${ISA_LINKER_FLAGS} ${PLATFORM_LINKER_FLAGS}")
 
 add_custom_command(TARGET kernel POST_BUILD
-        COMMAND ${CMAKE_SOURCE_DIR}/build/build.sh ${CMAKE_BINARY_DIR}/out ${CMAKE_CURRENT_BINARY_DIR}/kernel
+        COMMAND ${CMAKE_SOURCE_DIR}/build/build.sh ${CMAKE_BINARY_DIR}/out ${CMAKE_CURRENT_BINARY_DIR}/kernel ${PLATFORM_LAYOUT}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
 
 message("Built ISO file with grub will be located in ${CMAKE_BINARY_DIR}/out")
