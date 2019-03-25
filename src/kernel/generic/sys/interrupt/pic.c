@@ -38,9 +38,8 @@ void pic_init() {
 
     outb(PIC1_DATA, ICW4_8086);
     outb(PIC2_DATA, ICW4_8086);
-    outb(0x21,0xfd);
-    outb(0xa1,0xff);
+
     // disable IRQs
-//    outb(PIC1_DATA, 0xFF);
-//    outb(PIC2_DATA, 0xFF);
+    outb(PIC1_DATA, 0xFF);
+    outb(PIC2_DATA, 0xFF);
 }
