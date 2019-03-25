@@ -5,20 +5,7 @@ global __idt_exception_handlers
 global __idt_spurious_interrupt_handler
 global __idt_pit_interrupt_handler
 
-section .data
-idt_struct:
-    dw 0 ; Limit
-    dd 0 ; Base
-
 section .text
-__idt_set:
-    mov eax, [esp + 4]
-    mov [idt_struct + 2], eax
-    mov ax, [esp + 8]
-    mov [idt_struct], ax
-    lidt [idt_struct]
-    ret
-
 __idt_default_exception_handler:
     jmp $
 

@@ -13,8 +13,6 @@ void idt_init(void);
 
 void idt_set_handler(uint8_t interrupt, idt_interrupt_type type, void(*handler)());
 
-void __idt_set(void *idt, uint16_t size);
-
 extern void __idt_spurious_interrupt_handler();
 extern void __idt_pit_interrupt_handler();
 extern void __idt_default_exception_handler();

@@ -13,11 +13,10 @@ struct idt_descriptor {
     uint16_t offset_2; // offset bits 16..31
 } __attribute((packed));
 
-typedef struct IdtDesc
-{
+struct idt_desc {
     uint16_t limit;
     uint64_t base;
-}  __attribute((packed)) IdtDesc;
+} __attribute((packed));
 
 struct idt_descriptor idt_descriptors[256];
 
@@ -32,14 +31,12 @@ void idt_init(void) {
     idt_set_handler(INT_SPURIOUS, INTERRUPT, __idt_spurious_interrupt_handler);
     idt_set_handler(INT_TIMER, INTERRUPT, __idt_pit_interrupt_handler);
 
-//    __idt_set(&idt_descriptors, sizeof(idt_descriptors));
+    struct idt_desc desc = {
+        .limit = 256 * sizeof(struct idt_descriptor) - 1,
+        .base = (uint64_t) idt_descriptors
+    };
 
-    IdtDesc idtDesc =
-            {
-                    .limit = 256 * sizeof(struct idt_descriptor) - 1,
-                    .base = (uint64_t) idt_descriptors
-            };
-    __asm__ volatile("lidt %0" : : "m" (idtDesc) : "memory");
+    __asm__ volatile("lidt %0" : : "m" (desc) : "memory");
 }
 
 void idt_set_entry(uint8_t index, uint32_t offset, uint16_t selector, uint8_t type) {
