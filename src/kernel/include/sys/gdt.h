@@ -1,4 +1,4 @@
-void gdt_setup();
+void gdt_init();
 
 void __gdt_set(void *gdt, unsigned int size);
 

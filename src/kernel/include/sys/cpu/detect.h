@@ -92,9 +92,9 @@ typedef enum {
 
 typedef struct {
     cpu_vendor vendor;
-    int ecx_features;
-    int edx_features;
-    int extended_features;
+    unsigned int ecx_features;
+    unsigned int edx_features;
+    unsigned int extended_features;
     bool has_name;
     char name[48];
 } cpu_info_struct;

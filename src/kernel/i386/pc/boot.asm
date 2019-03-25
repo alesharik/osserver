@@ -14,8 +14,8 @@ multiboot_header:
     dd stack_bottom
     dd _start
     dd 1 ; Text mode
-    dd 720 ; Screen width
-    dd 480 ; Screen height
+    dd 1920 ; Screen width
+    dd 1080 ; Screen height
     dd 32 ; Pixel depth
 
 multiboot_header_end:
@@ -26,12 +26,18 @@ stack_bottom:
 resb 16384 ; 16 KiB
 stack_top:
 
-; The linker script specifies _start as the entry point to the kernel and the
-; bootloader will jump to this position once the kernel has been loaded. It
-; doesn't make sense to return from this function as the bootloader is gone.
-; Declare _start as a function symbol with the given symbol size.
+
 section .text
 _text_start:
+global kernel_exit
+kernel_exit:
+    jmp _start.end
+
+global __kernel_hang
+__kernel_hang:
+    cli
+    jmp _start.hang
+
 global _start:function (_start.end - _start)
 bits 32
 _start:

@@ -14,13 +14,6 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
-static inline bool are_interrupts_enabled() {
-    unsigned long flags;
-    asm volatile ( "pushf\n\t"
-                   "pop %0": "=g"(flags) );
-    return (bool)(flags & (1 << 9));
-}
-
 static inline unsigned long save_irqdisable(void) {
     unsigned long flags;
     asm volatile ("pushf\n\tcli\n\tpop %0" : "=r"(flags) : : "memory");
@@ -29,14 +22,6 @@ static inline unsigned long save_irqdisable(void) {
 
 static inline void irqrestore(unsigned long flags) {
     asm ("push %0\n\tpopf" : : "rm"(flags) : "memory","cc");
-}
-
-static inline void lidt(void* base, uint16_t size) {
-    struct {
-        uint16_t length;
-        void*    base;
-    } __attribute__((packed)) IDTR = { size, base };
-    asm ( "lidt %0" : : "m"(IDTR) );
 }
 
 #endif //OSSERVER_ASM_H

@@ -1,4 +1,5 @@
 #include "sys/gdt.h"
+#include "egdt.h"
 #include <stdint.h>
 
 // Each define here is for a specific flag in the descriptor.
@@ -74,10 +75,15 @@ struct gdt_t {
 
 struct gdt_t gdt;
 
-void gdt_setup(void) {
+void gdt_init(void) {
     gdt.zero = create_descriptor(0, 0, 0);
     gdt.kernel_code = create_descriptor(0, 0x000FC000, (GDT_CODE_PL0));
     gdt.kernel_data = create_descriptor(0, 0x000FF000, (GDT_DATA_PL0));
     __gdt_set(&gdt, sizeof(struct gdt_t));
     __gdt_reload_segments();
 }
+
+uint16_t __gdt_get_code_selector() {
+    return 0x8;
+}
+

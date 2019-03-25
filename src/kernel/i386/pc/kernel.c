@@ -4,6 +4,11 @@
 #include "multiboot.h"
 #include "sys/cpu/detect.h"
 #include "sys/gdt.h"
+#include "sys/kernel.h"
+#include "sys/interrupt/idt.h"
+#include "sys/interrupt/lapic.h"
+#include "sys/interrupt/pic.h"
+#include "sys/time/pit.h"
 
 #include "string.h"
 #include "sys/nmi.h"
@@ -18,20 +23,49 @@
 #error "This os needs to be compiled with a ix86-elf compiler"
 #endif
 
+void kpanic(const char *message) {
+    render_error(message);
+    __kernel_hang();
+}
+
+void check_cpu() {
+    if((cpu_info.edx_features & EDX_APIC) != EDX_APIC)
+        kpanic("Cannot run without APIC support");
+    if((cpu_info.edx_features & EDX_MSR) != EDX_MSR)
+        kpanic("Cannot run without MSR support");
+}
+
 void kernel_premain(unsigned long magic, unsigned long addr) {
-    gdt_setup();
 
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        //FIXME DO SOMETHING
+        kernel_exit();
         return;
     }
-    multiboot_info_t *mbt = (multiboot_info_t *) addr;
+
+    gdt_init();
+    screen_initialize();
 }
 
 void kernel_main(unsigned long magic, unsigned long addr) {
-    cpu_init_info();
+    multiboot_info_t *mbt = (multiboot_info_t *) addr;
 
-    screen_initialize();
+    cpu_init_info();
+    check_cpu();
+
+    idt_init();
+    pic_init();
+    lapic_init();
+    pit_init();
+
+    __asm__ volatile("sti"); //Enable interrupts
 
     render_error("qwe");
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+    for(;;) {
+        asm("hlt");
+    }
+#pragma clang diagnostic pop
+    render_error("exit");
 }
