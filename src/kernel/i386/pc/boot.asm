@@ -10,7 +10,7 @@ multiboot_header:
 
     dd multiboot_header
 	dd _text_start
-	dd _test_end
+	dd _text_end
     dd stack_bottom
     dd _start
     dd 1 ; Text mode
@@ -50,7 +50,11 @@ _start:
 	; stack (as it grows downwards on x86 systems). This is necessarily done
 	; in assembly as languages such as C cannot function without a stack.
 	mov esp, stack_top
- 
+
+	; store multiboot structures
+    push ebx
+    push eax
+
 	; This is a good place to initialize crucial processor state before the
 	; high-level kernel is entered. It's best to minimize the early
 	; environment where crucial features are offline. Note that the
@@ -59,7 +63,8 @@ _start:
 	; yet. The GDT should be loaded here. Paging should be enabled here.
 	; C++ features such as global constructors and exceptions will require
 	; runtime support to work as well.
- 
+	extern kernel_premain
+	call kernel_premain
 	; Enter the high-level kernel. The ABI requires the stack is 16-byte
 	; aligned at the time of the call instruction (which afterwards pushes
 	; the return pointer of size 4 bytes). The stack was originally 16-byte
@@ -67,8 +72,7 @@ _start:
 	; stack since (pushed 0 bytes so far) and the alignment is thus
 	; preserved and the call is well defined.
         ; note, that if you are building on Windows, C functions may have "_" prefix in assembly: _kernel_main
-    push ebx
-    push eax
+
 	extern kernel_main
 	call kernel_main
  
@@ -86,4 +90,5 @@ _start:
 .hang:	hlt
 	jmp .hang
 .end:
-_test_end:
+
+_text_end:
