@@ -1,9 +1,20 @@
 #include "sys/interrupt/idt.h"
 #include "egdt.h"
-#include "graphics/screen.h"
+#include "sys/interrupt/ioapic.h"
+#include "sys/acpi/acpi.h"
 
 #define INT_TIMER 0x20
 #define INT_SPURIOUS 0xff
+
+#define IRQ_BASE                        0x20
+
+#define IRQ_TIMER                       0x02
+#define IRQ_KEYBOARD                    0x01
+#define IRQ_COM2                        0x03
+#define IRQ_COM1                        0x04
+#define IRQ_FLOPPY                      0x06
+#define IRQ_ATA0                        0x0e
+#define IRQ_ATA1                        0x0f
 
 struct idt_descriptor {
     uint16_t offset_1;
@@ -30,6 +41,10 @@ void idt_init(void) {
 
     idt_set_handler(INT_SPURIOUS, INTERRUPT, __idt_spurious_interrupt_handler);
     idt_set_handler(INT_TIMER, INTERRUPT, __idt_pit_interrupt_handler);
+
+    //Enable interrupts
+    ioapic_all_set_entry(acpi_remap_irq(IRQ_TIMER), INT_TIMER);
+    ioapic_all_set_entry(acpi_remap_irq(IRQ_KEYBOARD), 33);
 
     struct idt_desc desc = {
         .limit = 256 * sizeof(struct idt_descriptor) - 1,

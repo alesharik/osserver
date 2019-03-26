@@ -1,6 +1,7 @@
 #include "sys/interrupt/lapic.h"
 #include <stdint.h>
 #include "sys/cpu/msr.h"
+#include "sys/acpi/acpi.h"
 
 #define LAPIC_ID                        0x0020  // Local APIC ID
 #define LAPIC_VER                       0x0030  // Local APIC Version
@@ -54,14 +55,14 @@
 
 #define ICR_DESTINATION_SHIFT           24
 
-const uint32_t APIC_ADDRESS = 0xFEE00000;//FIXME higher half and use ACPI
+//FIXME higher half
 
-uint32_t lapic_read(uint32_t reg) {
-    return *(volatile uint32_t *)(APIC_ADDRESS + reg);
+static inline uint32_t lapic_read(uint32_t reg) {
+    return *(volatile uint32_t *)(acpi_apic_info.lapic_addr + reg);
 }
 
-void lapic_write(uint32_t reg, uint32_t value) {
-    *(volatile uint32_t *)(APIC_ADDRESS + reg) = value;
+static inline void lapic_write(uint32_t reg, uint32_t value) {
+    *(volatile uint32_t *)(acpi_apic_info.lapic_addr + reg) = value;
 }
 
 void lapic_init(void) {
@@ -88,4 +89,8 @@ void lapic_send_startup(uint32_t id, uint32_t vector) {
     lapic_write(LAPIC_ICRHI, id << ICR_DESTINATION_SHIFT);
     lapic_write(LAPIC_ICRLO, vector | ICR_STARTUP | ICR_PHYSICAL | ICR_ASSERT | ICR_EDGE | ICR_NO_SHORTHAND);
     while (lapic_read(LAPIC_ICRLO) & ICR_SEND_PENDING);
+}
+
+extern inline void lapic_reset_irq() {
+    lapic_write(LAPIC_EOI, 0);
 }

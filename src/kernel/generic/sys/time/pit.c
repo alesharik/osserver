@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "sys/asm.h"
+#include "sys/interrupt/lapic.h"
 
 #define PIT_COUNTER0                        0x40
 #define PIT_CMD                             0x43
@@ -43,4 +44,5 @@ void pit_sleep(unsigned int ms) {
 
 void __pit_tick() {
     __pit_time++;
+    lapic_reset_irq();
 }

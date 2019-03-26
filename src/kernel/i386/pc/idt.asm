@@ -13,7 +13,11 @@ __idt_default_interrupt_handler:
     iretd
 
 __idt_pit_interrupt_handler:
-    ; FIXME
+    pushad
+    cld
+    extern __pit_tick
+    call __pit_tick
+    popad
     iretd
 
 %macro exception_handler 1

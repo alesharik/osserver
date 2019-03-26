@@ -11,4 +11,6 @@ void lapic_send_init(uint32_t id);
 
 void lapic_send_startup(uint32_t id, uint32_t vector);
 
+inline void lapic_reset_irq();
+
 #endif //OSSERVER_LAPIC_H
