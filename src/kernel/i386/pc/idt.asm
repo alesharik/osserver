@@ -4,6 +4,8 @@ global __idt_default_interrupt_handler
 global __idt_exception_handlers
 global __idt_spurious_interrupt_handler
 global __idt_pit_interrupt_handler
+global __idt_ps2_first_interrupt_handler
+global __idt_ps2_second_interrupt_handler
 
 section .text
 __idt_default_exception_handler:
@@ -17,6 +19,22 @@ __idt_pit_interrupt_handler:
     cld
     extern __pit_tick
     call __pit_tick
+    popad
+    iretd
+
+__idt_ps2_first_interrupt_handler:
+    pushad
+    cld
+    extern __ps2_irq_first_port
+    call __ps2_irq_first_port
+    popad
+    iretd
+
+__idt_ps2_second_interrupt_handler:
+    pushad
+    cld
+    extern __ps2_irq_second_port
+    call __ps2_irq_second_port
     popad
     iretd
 

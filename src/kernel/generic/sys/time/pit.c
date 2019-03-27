@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "sys/asm.h"
 #include "sys/interrupt/lapic.h"
+#include "sys/time/ktimer.h"
 
 #define PIT_COUNTER0                        0x40
 #define PIT_CMD                             0x43
@@ -28,7 +29,7 @@
 #define PIT_FREQUENCY                       1193182
 #define PIT_COUNTER0_RUN_FREQUENCY          1000
 
-unsigned long long int __pit_time = 0;
+unsigned long long int time = 0;
 
 void pit_init() {
     unsigned int divisor = PIT_FREQUENCY / PIT_COUNTER0_RUN_FREQUENCY;
@@ -38,11 +39,17 @@ void pit_init() {
 }
 
 void pit_sleep(unsigned int ms) {
-    unsigned long long int now = __pit_time;
-    while (__pit_time - now < ms);
+    unsigned long long int now = time;
+    while (time - now < ms);
 }
 
+unsigned long long int pit_get_time_since_startup() {
+    return time;
+}
+
+//Runs every 1 ms
 void __pit_tick() {
-    __pit_time++;
+    time++;
+    __ktimer_tick();
     lapic_reset_irq();
 }

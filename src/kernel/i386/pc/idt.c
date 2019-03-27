@@ -2,8 +2,12 @@
 #include "egdt.h"
 #include "sys/interrupt/ioapic.h"
 #include "sys/acpi/acpi.h"
+#include "sys/ps2/manager.h"
+#include "sys/ps2/controller.h"
 
 #define INT_TIMER 0x20
+#define INT_PS2_FIRST 0x21
+#define INT_PS2_SECOND 0x22
 #define INT_SPURIOUS 0xff
 
 #define IRQ_BASE                        0x20
@@ -41,10 +45,13 @@ void idt_init(void) {
 
     idt_set_handler(INT_SPURIOUS, INTERRUPT, __idt_spurious_interrupt_handler);
     idt_set_handler(INT_TIMER, INTERRUPT, __idt_pit_interrupt_handler);
+    idt_set_handler(INT_PS2_FIRST, INTERRUPT, __idt_ps2_first_interrupt_handler);
+    idt_set_handler(INT_PS2_SECOND, INTERRUPT, __idt_ps2_second_interrupt_handler);
 
     //Enable interrupts
     ioapic_all_set_entry(acpi_remap_irq(IRQ_TIMER), INT_TIMER);
-    ioapic_all_set_entry(acpi_remap_irq(IRQ_KEYBOARD), 33);
+    ioapic_all_set_entry(acpi_remap_irq(PS2_CONTROLLER_IRQ_FIRST_PORT), INT_PS2_FIRST);
+    ioapic_all_set_entry(acpi_remap_irq(PS2_CONTROLLER_IRQ_SECOND_PORT), INT_PS2_SECOND);
 
     struct idt_desc desc = {
         .limit = 256 * sizeof(struct idt_descriptor) - 1,

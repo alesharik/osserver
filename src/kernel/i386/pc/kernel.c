@@ -11,6 +11,8 @@
 #include "sys/interrupt/pic.h"
 #include "sys/time/pit.h"
 #include "sys/acpi/acpi.h"
+#include "sys/ps2/controller.h"
+#include "sys/ps2/manager.h"
 
 #include "string.h"
 #include "sys/nmi.h"
@@ -68,6 +70,9 @@ void kernel_main(unsigned long magic, unsigned long addr) {
     pit_init();
 
     __asm__ volatile("sti"); //Enable interrupts
+
+    ps2_controller_init();
+    ps2_manager_init();
 
     render_error("qwe");
 

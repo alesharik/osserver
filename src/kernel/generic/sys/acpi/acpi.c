@@ -5,9 +5,10 @@
 #include "string.h"
 #include "sys/asm.h"
 
-unsigned int acpi_cpu_count;
+unsigned int acpi_cpu_count = 0;
 unsigned char acpi_cpu_ids[MAX_CPU_COUNT];
 apic_info_struct acpi_apic_info = {.lapic_addr = 0, .ioapic_size = 0};
+bool acpi_ps2_controller_exists = false;
 
 typedef struct {
     uint32_t signature;
@@ -139,6 +140,9 @@ typedef struct {
 acpi_madt *acpi_madt_struct;
 
 static void acpi_parse_fadt(acpi_fadt *fadt) {
+    if(!acpi_ps2_controller_exists)
+        acpi_ps2_controller_exists = (fadt->boot_architecture_flags & 2) == 2;
+
     if (fadt->smi_command_port) {
 //        outb(fadt->smi_command_port, fadt->acpi_enable);
     } else {
@@ -217,7 +221,7 @@ static void acpi_parse_xsdt(acpi_header *xsdt) {
     }
 }
 
-bool acpi_parse_rsdp(uint8_t *ptr) {
+static bool acpi_parse_rsdp(uint8_t *ptr) {
     uint8_t sum = 0;
     for (unsigned int i = 0; i < 20; ++i)
         sum += ptr[i];
@@ -235,6 +239,8 @@ bool acpi_parse_rsdp(uint8_t *ptr) {
     // Check version
     uint8_t revision = ptr[15];
     if (revision == 0) {
+        acpi_ps2_controller_exists = true;
+
         uint32_t rsdtAddr = *(uint32_t *) (ptr + 16);
         acpi_parse_rsdt((acpi_header *) rsdtAddr);
     } else if (revision == 2) {

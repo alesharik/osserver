@@ -11,8 +11,14 @@ typedef enum {
 
 void idt_init(void);
 
+///
+/// \param interrupt
+/// \param type
+/// \param handler must be ready-to-use asm interrupt code
 void idt_set_handler(uint8_t interrupt, idt_interrupt_type type, void(*handler)());
 
+extern void __idt_ps2_first_interrupt_handler();
+extern void __idt_ps2_second_interrupt_handler();
 extern void __idt_spurious_interrupt_handler();
 extern void __idt_pit_interrupt_handler();
 extern void __idt_default_exception_handler();

@@ -2,6 +2,7 @@
 #define OSSERVER_ACPI_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define MAX_CPU_COUNT 16
 
@@ -17,6 +18,7 @@ typedef struct {
 } apic_info_struct;
 
 apic_info_struct acpi_apic_info;
+bool acpi_ps2_controller_exists;
 
 void acpi_init(void);
 
