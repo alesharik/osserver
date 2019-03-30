@@ -1,9 +1,11 @@
 #include "sys/acpi/acpi.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/mem/kmem.h>
 #include "sys/kernel.h"
 #include "string.h"
 #include "sys/asm.h"
+#include "sys/mem/paging.h"
 
 unsigned int acpi_cpu_count = 0;
 unsigned char acpi_cpu_ids[MAX_CPU_COUNT];
@@ -140,7 +142,7 @@ typedef struct {
 acpi_madt *acpi_madt_struct;
 
 static void acpi_parse_fadt(acpi_fadt *fadt) {
-    if(!acpi_ps2_controller_exists)
+    if (!acpi_ps2_controller_exists)
         acpi_ps2_controller_exists = (fadt->boot_architecture_flags & 2) == 2;
 
     if (fadt->smi_command_port) {
@@ -151,9 +153,10 @@ static void acpi_parse_fadt(acpi_fadt *fadt) {
 }
 
 static void acpi_parse_apic(acpi_madt *madt) {
-    acpi_madt_struct = madt;
+    acpi_madt_struct = kmalloc(madt->header.length);
+    memcpy((const char *) acpi_madt_struct, (const char *) madt, madt->header.length);
 
-    acpi_apic_info.lapic_addr = madt->localApicAddr;
+    acpi_apic_info.lapic_addr = kernel_map_device_map(madt->localApicAddr);
     uint8_t *start = (uint8_t *) (acpi_madt_struct + 1);
     uint8_t *end = (uint8_t *) acpi_madt_struct + acpi_madt_struct->header.length;
 
@@ -175,7 +178,7 @@ static void acpi_parse_apic(acpi_madt *madt) {
                 continue;
             apic_io_apic *s = (apic_io_apic *) start;
             //FIXME log
-            acpi_apic_info.ioapic_addrs[acpi_apic_info.ioapic_size] = s->io_apic_address;
+            acpi_apic_info.ioapic_addrs[acpi_apic_info.ioapic_size] = kernel_map_device_map(s->io_apic_address);
             acpi_apic_info.ioapic_size++;
         } else if (type == INTERRUPT_OVERRIDE) {
             apic_interrupt_override *s = (apic_interrupt_override *) start;
@@ -203,11 +206,21 @@ static void acpi_parse_dt(acpi_header *header) {
 
 static void acpi_parse_rsdt(acpi_header *rsdt) {
     uint32_t *start = (uint32_t *) (rsdt + 1);
-    uint32_t *end = (uint32_t *) ((uint8_t *) rsdt + rsdt->length);
+    volatile uint32_t *end = (uint32_t *) ((uint8_t *) rsdt + rsdt->length);
 
     while (start < end) {
         uint32_t address = *start++;
-        acpi_parse_dt((acpi_header *) address);
+        if(!paging_map(address, PAGING_DEVMAP_START + 0x2000000, 4096, 0))
+            kpanic("Cannot map ACPI rsdt");
+        acpi_header *header = PAGING_DEVMAP_START + 0x2000000 + (address & 0xFFF);
+        uint32_t len = header->length;
+        if(!paging_unmap(PAGING_DEVMAP_START + 0x2000000, 4096))
+            kpanic("Cannot unmap ACPI rsdt");
+        if(!paging_map(address, PAGING_DEVMAP_START + 0x2000000, len, 0))
+            kpanic("Cannot map again ACPI rsdt");
+        acpi_parse_dt((acpi_header *) (PAGING_DEVMAP_START + 0x2000000 + (address & 0xFFF)));
+        if(!paging_unmap(PAGING_DEVMAP_START + 0x2000000, len))
+            kpanic("Cannot unmap again ACPI rsdt");
     }
 }
 
@@ -242,17 +255,48 @@ static bool acpi_parse_rsdp(uint8_t *ptr) {
         acpi_ps2_controller_exists = true;
 
         uint32_t rsdtAddr = *(uint32_t *) (ptr + 16);
-        acpi_parse_rsdt((acpi_header *) rsdtAddr);
+        if (!paging_map(rsdtAddr, PAGING_DEVMAP_START + 0x1000000, 4096, 0))
+            kpanic("Cannot map ACPI rsdt table");
+        acpi_header *header = PAGING_DEVMAP_START + 0x1000000 + (rsdtAddr & 0xFFF);
+        uint32_t length = header->length;
+        if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, 4096))
+            kpanic("Cannot unmap ACPI rsdt table");
+        if (!paging_map(rsdtAddr, PAGING_DEVMAP_START + 0x1000000, length, 0))
+            kpanic("Cannot map again ACPI rsdt table");
+        acpi_parse_rsdt((acpi_header *) (PAGING_DEVMAP_START + 0x1000000 + (rsdtAddr & 0xFFF)));
+        if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, length))
+            kpanic("Cannot unmap again ACPI rsdt table");
     } else if (revision == 2) {
         uint32_t rsdtAddr = *(uint32_t *) (ptr + 16);
         uint64_t xsdtAddr = *(uint64_t *) (ptr + 24);
 
-        if (xsdtAddr)
-            acpi_parse_xsdt((acpi_header *) xsdtAddr);
-        else
-            acpi_parse_rsdt((acpi_header *) rsdtAddr);
+        if (xsdtAddr) {
+            if (!paging_map(xsdtAddr, PAGING_DEVMAP_START + 0x1000000, 4096, 0))
+                kpanic("Cannot map ACPI xsdt table");
+            acpi_header *header = PAGING_DEVMAP_START + 0x1000000 + (xsdtAddr & 0xFFF);
+            uint32_t length = header->length;
+            if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, 4096))
+                kpanic("Cannot unmap ACPI xsdt table");
+            if (!paging_map(xsdtAddr, PAGING_DEVMAP_START + 0x1000000, length, 0))
+                kpanic("Cannot map again ACPI xsdt table");
+            acpi_parse_xsdt((acpi_header *) (PAGING_DEVMAP_START + 0x1000000 + (xsdtAddr & 0xFFF)));
+            if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, length))
+                kpanic("Cannot unmap again ACPI xsdt table");
+        } else {
+            if (!paging_map(rsdtAddr, PAGING_DEVMAP_START + 0x1000000, 4096, 0))
+                kpanic("Cannot map ACPI rsdt table");
+            acpi_header *header = PAGING_DEVMAP_START + 0x1000000  + (rsdtAddr & 0xFFF);
+            uint32_t length = header->length;
+            if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, 4096))
+                kpanic("Cannot unmap ACPI rsdt table");
+            if (!paging_map(rsdtAddr, PAGING_DEVMAP_START + 0x1000000, length, 0))
+                kpanic("Cannot map again ACPI rsdt table");
+            acpi_parse_rsdt((acpi_header *) (PAGING_DEVMAP_START + 0x1000000 + (rsdtAddr & 0xFFF)));
+            if (!paging_unmap(PAGING_DEVMAP_START + 0x1000000, length))
+                kpanic("Cannot unmap again ACPI rsdt table");
+        }
     } else
-        return false;//FIXME
+        kpanic("Unknown ACPI rsdp version");
 
     return true;
 }
@@ -266,19 +310,25 @@ static int check_rsdp(uint64_t address) {
 
 static uint64_t search_rsdp_bios() {
     const char *signature = "RSD PTR ";
+    if (!paging_map((void *) 0xe0000, (void *) PAGING_DEVMAP_START, 0x20000, 0))
+        kpanic("Cannot map bios rsdp entry");
     for (uint64_t offset = 0; offset < 0x20000; offset += 16) {
-        if (memcmp((const char *) (0xe0000 + offset), signature, 8) == 0) {
-            if (check_rsdp(0xe0000 + offset))
+        if (memcmp((const char *) (PAGING_DEVMAP_START + offset), signature, 8) == 0) {
+            if (check_rsdp(PAGING_DEVMAP_START + offset))
                 continue;
-            return 0xe0000 + offset;
+            return PAGING_DEVMAP_START + offset;
         }
     }
+    if (!paging_unmap((void *) PAGING_DEVMAP_START, 0x20000))
+        kpanic("Cannot unmap bios rsdp entry");
     return 0;
 }
 
 static uint64_t search_rsdp_ebda() {
     const char *signature = "RSD PTR ";
-    uint64_t ebda_start = (*(uint16_t *) (0x40e)) << 4;
+    if (!paging_map((void *) 0, (void *) PAGING_DEVMAP_START, 0x400, 0)) //0x40e - 0 block, 0x400 < 1024
+        kpanic("Cannot map ebda rsdp sector");
+    uint64_t ebda_start = PAGING_DEVMAP_START + 0x40e;
     for (uint64_t offset = 0; offset < 0x400; offset += 16) {
         if (memcmp((const char *) (ebda_start + offset), signature, 8) == 0) {
             if (check_rsdp(ebda_start + offset))
@@ -286,16 +336,25 @@ static uint64_t search_rsdp_ebda() {
             return ebda_start + offset;
         }
     }
+    if (!paging_unmap((void *) PAGING_DEVMAP_START, 0x400))
+        kpanic("Cannot unmap ebda rsdp entry");
     return 0;
 }
 
 void acpi_init() {
     uint64_t ptr = search_rsdp_bios();
-    if(ptr == 0)
+    if (ptr == 0) {
         ptr = search_rsdp_ebda();
-    if(ptr == 0)
-        kpanic("Cannot find ACPI tables");
-    acpi_parse_rsdp(ptr);
+        if (ptr == 0)
+            kpanic("Cannot find ACPI tables");
+        acpi_parse_rsdp(ptr);
+        if (!paging_unmap((void *) PAGING_DEVMAP_START, 0x400))
+            kpanic("Cannot unmap ebda rsdp entry");
+    } else {
+        acpi_parse_rsdp(ptr);
+        if (!paging_unmap((void *) PAGING_DEVMAP_START, 0x20000))
+            kpanic("Cannot unmap ebda rsdp entry");
+    }
 }
 
 unsigned int acpi_remap_irq(unsigned int irq) {

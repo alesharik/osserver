@@ -34,6 +34,8 @@ struct idt_desc {
 } __attribute((packed));
 
 struct idt_descriptor idt_descriptors[256];
+bool idt_interrupts_enabled = false;
+bool idt_setup = false;
 
 void idt_init(void) {
     for (int i = 0; i < 20; ++i)
@@ -54,11 +56,12 @@ void idt_init(void) {
     ioapic_all_set_entry(acpi_remap_irq(PS2_CONTROLLER_IRQ_SECOND_PORT), INT_PS2_SECOND);
 
     struct idt_desc desc = {
-        .limit = 256 * sizeof(struct idt_descriptor) - 1,
-        .base = (uint64_t) idt_descriptors
+            .limit = 256 * sizeof(struct idt_descriptor) - 1,
+            .base = (uint64_t) idt_descriptors
     };
 
     __asm__ volatile("lidt %0" : : "m" (desc) : "memory");
+    idt_setup = true;
 }
 
 void idt_set_entry(uint8_t index, uint32_t offset, uint16_t selector, uint8_t type) {
@@ -77,4 +80,18 @@ void idt_set_handler(uint8_t interrupt, idt_interrupt_type type, void(*handler)(
         idt_set_entry(interrupt, (uint32_t) handler, __gdt_get_code_selector(), type);
     else
         idt_set_entry(interrupt, 0, 0, 0);
+}
+
+void idt_int_disable() {
+    if (idt_interrupts_enabled)
+        __asm__ volatile("cli");
+    idt_interrupts_enabled = false;
+}
+
+void idt_int_enable() {
+    if(!idt_setup)
+        return;
+    if (!idt_interrupts_enabled)
+        __asm__ volatile("sti");
+    idt_interrupts_enabled = true;
 }

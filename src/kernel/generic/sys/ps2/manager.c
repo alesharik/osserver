@@ -144,6 +144,7 @@ static void handle_irq(unsigned int devId) {
         dev->type = KEYBOARD;
         __ps2_keyboard_setup(devId, true);
         __ps2_keyboard_handle_byte(devId, cmd);
+        lapic_reset_irq();
         return;
     }
     

@@ -1,55 +1,41 @@
-/* The bootloader will look at this image and start execution at the symbol
-   designated as the entry point. */
-ENTRY(_start)
+ENTRY(_bootloader)
 
-/* Tell where the various sections of the object files will be put in the final
-   kernel image. */
+KERNEL_VIRTUAL_BASE = 0xC0000000;
+KERNEL_PHYSICAL_BASE = 0x100000;
+
 SECTIONS
 {
-	/* Begin putting sections at 1 MiB, a conventional place for kernels to be
-	   loaded at by the bootloader. */
-	. = 1M;
+    . = KERNEL_VIRTUAL_BASE + KERNEL_PHYSICAL_BASE;
 
-	/* First put the multiboot header, as it is required to be put very early
-	   early in the image or the bootloader won't recognize the file format.
-	   Next we'll put the .text section. */
-	.text BLOCK(4K) : ALIGN(4K)
+    _kernel_start = .;
+    .text BLOCK(4K) : AT(ADDR(.text) - KERNEL_VIRTUAL_BASE)
 	{
-		*(.multiboot)
+	    *(.multiboot)
 		*(.text)
+		. = ALIGN(4K);
 	}
 
-	/* Make sure the GNU notes information is placed after .text. Failure to
-	   to do so may push the GRUB multiboot information beyond the first 8k
-	   and GRUB will not identify this kernel as multiboot capable.
-	   Alternative to this is to compile the final binary with this linker
-	   option to exclude this unqiue header:
-	   -Wl,--build-id=none */
-
-	.note.gnu.build-id BLOCK(4K) : ALIGN(4K)
-	{
-		*(.note.gnu.build-id)
-	}
-
-	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K)
+	.rodata BLOCK(4K) : AT(ADDR(.rodata) - KERNEL_VIRTUAL_BASE)
 	{
 		*(.rodata)
+		. = ALIGN(4K);
 	}
 
-	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K)
+	.data BLOCK(4K) : AT(ADDR(.data) - KERNEL_VIRTUAL_BASE)
 	{
 		*(.data)
+		. = ALIGN(4K);
 	}
 
-	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K)
+	.bss BLOCK(4K) : AT(ADDR(.bss) - KERNEL_VIRTUAL_BASE)
 	{
 		*(COMMON)
 		*(.bss)
+		. = ALIGN(4K);
 	}
 
-	/* The compiler may produce other sections, by default it will put them in
-	   a segment with the same name. Simply add stuff here as needed. */
+    _kernel_end = .;
+    /DISCARD/ : {
+        *(.note.gnu.build-id)
+    }
 }

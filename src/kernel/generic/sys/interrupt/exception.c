@@ -24,7 +24,6 @@ static const char *exception_description[20] = {
     [19] = "SIMD Exception"
 };
 
-
 void handle_exception(REGISTER_SIZE cs, REGISTER_SIZE ss, REGISTER_SIZE ax,
                       REGISTER_SIZE cx, REGISTER_SIZE dx, REGISTER_SIZE bx,
                       REGISTER_SIZE bp, REGISTER_SIZE si, REGISTER_SIZE di,

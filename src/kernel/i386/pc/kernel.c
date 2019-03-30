@@ -1,7 +1,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "internals.h"
 #include "multiboot.h"
+#include "sys/mem/paging.h"
+#include "sys/mem/kmem.h"
 #include "sys/cpu/detect.h"
 #include "sys/gdt.h"
 #include "sys/kernel.h"
@@ -27,6 +30,8 @@
 #error "This os needs to be compiled with a ix86-elf compiler"
 #endif
 
+uint16_t kdevmap_index = 0;
+
 void kpanic(const char *message) {
     render_error(message);
     __kernel_hang();
@@ -39,37 +44,63 @@ void check_cpu() {
 //        kpanic("Cannot run without ACPI support");
     if ((cpu_info.edx_features & EDX_APIC) != EDX_APIC)
         kpanic("Cannot run without APIC chip");
+    if((cpu_info.edx_features & EDX_PAE) != EDX_PAE)
+        kpanic("Cannot run without PAE support");
 }
 
 void kernel_premain(unsigned long magic, unsigned long addr) {
-
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC) {
         kernel_exit();
         return;
     }
+    uint32_t *pages = (uint32_t *) __get_kernel_page_start();
 
-    gdt_init();
-    screen_initialize();
-}
-
-void kernel_main(unsigned long magic, unsigned long addr) {
     multiboot_info_t *mbt = (multiboot_info_t *) addr;
-    multiboot_memory_map_t *mmap = mbt->mmap_addr;
-//    while (mmap < mbt->mmap_addr + mbt->mmap_length) {
-//        mmap = (multiboot_memory_map_t *) ((unsigned int) mmap + mmap->size + sizeof(mmap->size));
-//    }
+    multiboot_memory_map_t *mmap = mbt->mmap_addr + KERNEL_VIRTUAL_BASE;
+
+
+    bool memorySetup = false;
+
+    while (mmap < (mbt->mmap_addr + KERNEL_VIRTUAL_BASE) + mbt->mmap_length) {
+        mmap = (multiboot_memory_map_t *) ((unsigned int) mmap + mmap->size + sizeof(mmap->size));
+        if(mmap->type != MULTIBOOT_MEMORY_AVAILABLE)
+            continue;
+        uint64_t addr = (mmap->addr % 4096) > 0 ? (mmap->addr + mmap->addr % 4096) : mmap->addr;
+        uint64_t len = (mmap->addr % 4096) > 0 ? (mmap->len - mmap->addr % 4096) : mmap->len;
+        if(!memorySetup && len > 32 * 1024 * 1024 + 0x300000) {
+            for (int i = 0; i < 32 * 1024 / 4; ++i) {
+                pages[i] = (addr + i * 4096 + 0x300000) | 3;
+            }
+            memory_kernel_init((void *) (0xC0800000));
+            memorySetup = true;
+            //TODO setup user memory
+        }
+    }
+    screen_initialize();
+
+    if(!memorySetup)
+        kpanic("Not enough memory to setup kernel");
+    uint32_t directory = __get_kernel_page_directory();
+    uint16_t count = __get_kernel_page_directory_size();
+    __32_paging_init((uint32_t *) directory, count, pages, 770);
+    screen_write_string("INIT");
 
     cpu_init_info();
     check_cpu();
-    acpi_init();
 
+    gdt_init();
+
+    acpi_init();
+}
+
+void kernel_main(unsigned long magic, unsigned long addr) {
     ioapic_init();
     idt_init();
     pic_init();
     lapic_init();
     pit_init();
 
-    __asm__ volatile("sti"); //Enable interrupts
+    idt_int_enable();
 
     ps2_controller_init();
     ps2_manager_init();
@@ -83,4 +114,13 @@ void kernel_main(unsigned long magic, unsigned long addr) {
     }
 #pragma clang diagnostic pop
     render_error("exit");
+}
+
+void *kernel_map_device_map(void *ptr) {
+    if(kdevmap_index >= 1024)
+        kpanic("Cannot reserve device page: devmap full");
+    uint32_t *page = __get_kernel_dev_page();
+    page[kdevmap_index++] = ((uint32_t)ptr & ~0xFFF) | 3;
+    __tlb_flush();
+    return 0xc2800000 + ((kdevmap_index - 1) * 4096);
 }
