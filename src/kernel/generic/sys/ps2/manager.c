@@ -4,7 +4,6 @@
 #include "sys/interrupt/lapic.h"
 #include "sys/time/pit.h"
 #include "sys/ps2/keyboard.h"
-#include "graphics/screen.h"
 #include <stdint.h>
 
 #define PS2_DEVICE_RESPONSE_OK 0xAA

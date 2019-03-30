@@ -3,8 +3,6 @@
 #include "sys/ps2/controller.h"
 #include "sys/klog.h"
 
-#include "graphics/screen.h"
-
 uint8_t leds[2] = {0, 0};
 uint8_t buffers[2][6];
 

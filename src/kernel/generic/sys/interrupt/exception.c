@@ -1,6 +1,5 @@
-#include <graphics/renderer.h>
+#include <sys/klog.h>
 #include "sys/interrupt/exception.h"
-#include "graphics/screen.h"
 
 static const char *exception_description[20] = {
     [0] = "Divide By Zero Error",
@@ -31,6 +30,8 @@ void handle_exception(REGISTER_SIZE cs, REGISTER_SIZE ss, REGISTER_SIZE ax,
     const char *name = "Unknown";
     if(err < 20)
         name = exception_description[err];//FIXME add register dump
-    screen_write_string("\nError: ");
-    screen_write_string(name);
+    kerror("Error: %s", name);
+    kerror("Registers: cs=%d, ss=%d, ax=%d, cx=%d", cs, ss, ax, cx);
+    kerror("dx=%d, bx=%d, bp=%d, si=%d, di=%d", dx, bx, bp, si, di);
+    kerror("int=%d, err=%d", interrupt, err);
 }
