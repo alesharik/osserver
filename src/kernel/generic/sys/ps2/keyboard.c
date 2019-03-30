@@ -1,6 +1,7 @@
 #include <sys/kernel.h>
 #include "sys/ps2/keyboard.h"
 #include "sys/ps2/controller.h"
+#include "sys/klog.h"
 
 #include "graphics/screen.h"
 
@@ -24,10 +25,7 @@ void __ps2_keyboard_setup(uint8_t devId, bool scancode2) {
 }
 
 void __ps2_keyboard_handle_byte(uint8_t devId, uint8_t byte) {
-    screen_setcursor(300, 300);
-    screen_write_string("Keyboard: ");
-    screen_write_char(byte);
-    screen_setcursor(0, 0);
+    klog("KDB: %d", byte);
 }
 
 void ps2_keyboard_set_led(ps2_port port, uint8_t id, bool on) {

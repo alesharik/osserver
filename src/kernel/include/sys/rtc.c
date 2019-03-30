@@ -14,7 +14,7 @@ unsigned char _day;
 unsigned char _month;
 unsigned int _year;
 atomic_bool _update;
-
+//TODO rewrite
 static inline void _rtc_wait_for_update(void) {
     while (_update);
 }

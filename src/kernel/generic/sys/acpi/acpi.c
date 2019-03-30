@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/mem/kmem.h>
+#include <sys/klog.h>
 #include "sys/kernel.h"
 #include "string.h"
 #include "sys/asm.h"
@@ -148,7 +149,7 @@ static void acpi_parse_fadt(acpi_fadt *fadt) {
     if (fadt->smi_command_port) {
 //        outb(fadt->smi_command_port, fadt->acpi_enable);
     } else {
-        //FIXME print acpi already enabled
+        kwarning("ACPI Control already enabled");
     }
 }
 
@@ -167,8 +168,7 @@ static void acpi_parse_apic(acpi_madt *madt) {
 
         if (type == LOCAL_APIC) {
             apic_local_apic *s = (apic_local_apic *) start;
-
-//         FIXME log cpu
+            klog("ACPI: Found CPU %d with APIC %d and flags %x", s->acpi_processor_id, s->apic_id, s->flags);
             if (acpi_cpu_count < MAX_CPU_COUNT) {
                 acpi_cpu_ids[acpi_cpu_count] = s->apic_id;
                 acpi_cpu_count++;
@@ -177,15 +177,14 @@ static void acpi_parse_apic(acpi_madt *madt) {
             if (acpi_apic_info.ioapic_size > MAX_IOAPIC_COUNT)
                 continue;
             apic_io_apic *s = (apic_io_apic *) start;
-            //FIXME log
+            klog("ACPI: Found IOAPIC %d at %x with GIB %x", s->io_apic_id, s->io_apic_address, s->global_system_interrupt_base);
             acpi_apic_info.ioapic_addrs[acpi_apic_info.ioapic_size] = kernel_map_device_map(s->io_apic_address);
             acpi_apic_info.ioapic_size++;
         } else if (type == INTERRUPT_OVERRIDE) {
             apic_interrupt_override *s = (apic_interrupt_override *) start;
-            //FIXME log
-        } else {
-//            FIXME report unknown
-        }
+            klog("ACPI: Found int override %x with source %x, bus %x, flags: %x", s->interrupt, s->source, s->bus, s->flags);
+        } else
+            kwarning("ACPI: Found unknown struct with type %d", type);
 
         start += length;
     }
@@ -194,9 +193,10 @@ static void acpi_parse_apic(acpi_madt *madt) {
 static void acpi_parse_dt(acpi_header *header) {
     uint32_t signature = header->signature;
 
-//    char sigStr[5]; FIXME log
-//    memcpy(sigStr, &signature, 4);
-//    sigStr[4] = 0;
+    char sigStr[5];
+    memcpy(sigStr, &signature, 4);
+    sigStr[4] = 0;
+    klog("ACPI: DT Signature: %s", sigStr);
 
     if (signature == 0x50434146)
         acpi_parse_fadt((acpi_fadt *) header);
@@ -240,15 +240,15 @@ static bool acpi_parse_rsdp(uint8_t *ptr) {
         sum += ptr[i];
 
     if (sum) {
-        //FIXME report checksum failed
+        kwarning("ACPI: entry checksum failed! Address: %p", ptr);
         return false;
     }
 
-    // Print OEM FIXME log
-//    char oem[7];
-//    memcpy(oem, p + 9, 6);
-//    oem[6] = '\0';
-
+    char oem[7];
+    memcpy(oem, ptr + 9, 6);
+    oem[6] = '\0';
+    klog("ACPI: OEM: %s", oem);
+    
     // Check version
     uint8_t revision = ptr[15];
     if (revision == 0) {

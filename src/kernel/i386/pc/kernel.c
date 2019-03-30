@@ -16,6 +16,8 @@
 #include "sys/acpi/acpi.h"
 #include "sys/ps2/controller.h"
 #include "sys/ps2/manager.h"
+#include "sys/dev/vga.h"
+#include "sys/klog.h"
 
 #include "string.h"
 #include "sys/nmi.h"
@@ -33,7 +35,7 @@
 uint16_t kdevmap_index = 0;
 
 void kpanic(const char *message) {
-    render_error(message);
+    kerror(message);
     __kernel_hang();
 }
 
@@ -58,7 +60,6 @@ void kernel_premain(unsigned long magic, unsigned long addr) {
     multiboot_info_t *mbt = (multiboot_info_t *) addr;
     multiboot_memory_map_t *mmap = mbt->mmap_addr + KERNEL_VIRTUAL_BASE;
 
-
     bool memorySetup = false;
 
     while (mmap < (mbt->mmap_addr + KERNEL_VIRTUAL_BASE) + mbt->mmap_length) {
@@ -76,36 +77,52 @@ void kernel_premain(unsigned long magic, unsigned long addr) {
             //TODO setup user memory
         }
     }
-    screen_initialize();
+    vga_init(mbt->framebuffer_width, mbt->framebuffer_height);
+    klog_init();
 
     if(!memorySetup)
         kpanic("Not enough memory to setup kernel");
     uint32_t directory = __get_kernel_page_directory();
     uint16_t count = __get_kernel_page_directory_size();
+    klog("Paging setup");
     __32_paging_init((uint32_t *) directory, count, pages, 770);
-    screen_write_string("INIT");
 
+    klog("Loading CPUID...");
     cpu_init_info();
+    klog("Checking CPU...");
     check_cpu();
 
+    klog("Setting up GDT...");
     gdt_init();
 
+    klog("Loading ACPI...");
     acpi_init();
 }
 
 void kernel_main(unsigned long magic, unsigned long addr) {
+    klog("Setting up IOAPIC...");
     ioapic_init();
+    klog("Setting up IDT...");
     idt_init();
+    klog("Disabling PIC...");
     pic_init();
+    klog("Setting up LAPIC...");
     lapic_init();
+    klog("Setting up PIT...");
     pit_init();
 
+    klog("Enabling interrupts...");
     idt_int_enable();
+    klog("Yay! Interrupts enabled!");
 
-    ps2_controller_init();
-    ps2_manager_init();
-
-    render_error("qwe");
+    klog("Setting up PS/2 controller...");
+    if(!ps2_controller_init())
+        kwarning("Cannot setup PS/2 controller");
+    else {
+        klog("Setting up PS/2 devices...");
+        ps2_manager_init();
+    }
+    klog("Kernel ready!");
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
@@ -113,7 +130,6 @@ void kernel_main(unsigned long magic, unsigned long addr) {
         asm("hlt");
     }
 #pragma clang diagnostic pop
-    render_error("exit");
 }
 
 void *kernel_map_device_map(void *ptr) {

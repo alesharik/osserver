@@ -4,6 +4,7 @@
 #include "sys/kernel.h"
 #include "sys/time/ktimer.h"
 #include <stdint.h>
+#include <sys/klog.h>
 
 #define PS2_CONTROLLER_DISABLE_PS_PORT_1 0xAD
 #define PS2_CONTROLLER_DISABLE_PS_PORT_2 0xA7
@@ -42,6 +43,7 @@ static void timeout_timer() {
         ps2_controller_timeouts[0] -= 5;
     if (ps2_controller_timeouts[1] > 0)
         ps2_controller_timeouts[0] -= 5;
+    inb(0x60);
 }
 
 static timer_task timeout_task = {
@@ -98,49 +100,46 @@ bool ps2_controller_init() {
         return false;
     if ((get_status() & PS2_CONTROLLER_STATUS_SYSTEM_BIT) != PS2_CONTROLLER_STATUS_SYSTEM_BIT)
         kpanic("PS/2 controller hasn't been checked while POST");
-//
-//    send_command(PS2_CONTROLLER_DISABLE_PS_PORT_1, PS2_PORT_FIRST);
-//    send_command(PS2_CONTROLLER_DISABLE_PS_PORT_2, PS2_PORT_SECOND);
-//
-//    inb(0x60); //Cleanup data register
-//
-//    send_command(PS2_CONTROLLER_READ_CONFIGURATION, PS2_PORT_FIRST);
-//    uint8_t config = get_response(PS2_PORT_FIRST);
-//    config &= ~PS2_CONTROLLER_CONFIG_FIRST_PORT_INTERRUPT_BIT;
-//    config &= ~PS2_CONTROLLER_CONFIG_SECOND_PORT_INTERRUPT_BIT;
-//    config &= ~PS2_CONTROLLER_CONFIG_FIRST_PORT_TRANSLATION_BIT;
-//    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
-//
-//    bool hasSecondPort =
-//            (config & PS2_CONTROLLER_CONFIG_SECOND_PORT_CLOCK_BIT) != PS2_CONTROLLER_CONFIG_SECOND_PORT_CLOCK_BIT;
-//
-//    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
-//
-//    send_command(PS2_CONTROLLER_TEST_FIRST_PORT, PS2_PORT_FIRST);
-//    bool firstPortWorking = get_response(PS2_PORT_FIRST) == 0;
-//    bool secondPortWorking = false;
-//    if (hasSecondPort) {
-//        send_command(PS2_CONTROLLER_TEST_SECOND_PORT, PS2_PORT_SECOND);
-//        secondPortWorking = get_response(PS2_PORT_SECOND) == 0;
-//    }
-//
-//    if (!firstPortWorking && !secondPortWorking) {
-//        ps2_controller_working = false;
-//        //TODO report
-//        return false;
-//    }
-//
-//    send_command(PS2_CONTROLLER_ENABLE_PS_PORT_1, PS2_PORT_FIRST);
-//    send_command(PS2_CONTROLLER_ENABLE_PS_PORT_2, PS2_PORT_SECOND);
-//
-//    config |= PS2_CONTROLLER_CONFIG_SECOND_PORT_INTERRUPT_BIT;
-//    config |= PS2_CONTROLLER_CONFIG_FIRST_PORT_INTERRUPT_BIT;
-//    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
-//
-//    uint8_t tmp = inb(0x61);
-//    outb(0x61, tmp | 0x80);
-//    outb(0x61, tmp & 0x7F);
-//    inb(0x60);
+
+    send_command(PS2_CONTROLLER_DISABLE_PS_PORT_1, PS2_PORT_FIRST);
+    send_command(PS2_CONTROLLER_DISABLE_PS_PORT_2, PS2_PORT_SECOND);
+
+    inb(0x60); //Cleanup data register
+
+    send_command(PS2_CONTROLLER_READ_CONFIGURATION, PS2_PORT_FIRST);
+    uint8_t config = get_response(PS2_PORT_FIRST);
+    config &= ~PS2_CONTROLLER_CONFIG_FIRST_PORT_INTERRUPT_BIT;
+    config &= ~PS2_CONTROLLER_CONFIG_SECOND_PORT_INTERRUPT_BIT;
+    config &= ~PS2_CONTROLLER_CONFIG_FIRST_PORT_TRANSLATION_BIT;
+    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
+
+    bool hasSecondPort =
+            (config & PS2_CONTROLLER_CONFIG_SECOND_PORT_CLOCK_BIT) != PS2_CONTROLLER_CONFIG_SECOND_PORT_CLOCK_BIT;
+
+    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
+
+    send_command(PS2_CONTROLLER_TEST_FIRST_PORT, PS2_PORT_FIRST);
+    bool firstPortWorking = get_response(PS2_PORT_FIRST) == 0;
+    bool secondPortWorking = false;
+    if (hasSecondPort) {
+        send_command(PS2_CONTROLLER_TEST_SECOND_PORT, PS2_PORT_SECOND);
+        secondPortWorking = get_response(PS2_PORT_SECOND) == 0;
+    }
+
+    if (!firstPortWorking && !secondPortWorking) {
+        ps2_controller_working = false;
+        kwarning("PS/2 Controller has all 2 ports broken");
+        return false;
+    }
+
+    send_command(PS2_CONTROLLER_ENABLE_PS_PORT_1, PS2_PORT_FIRST);
+    send_command(PS2_CONTROLLER_ENABLE_PS_PORT_2, PS2_PORT_SECOND);
+
+    config |= PS2_CONTROLLER_CONFIG_SECOND_PORT_INTERRUPT_BIT;
+    config |= PS2_CONTROLLER_CONFIG_FIRST_PORT_INTERRUPT_BIT;
+    config |= PS2_CONTROLLER_CONFIG_FIRST_PORT_CLOCK_BIT;
+    config |= PS2_CONTROLLER_CONFIG_SECOND_PORT_CLOCK_BIT;
+    send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
     ps2_controller_working = true;
     ps2_controller_has_second_port = true;
 
