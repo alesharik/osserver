@@ -101,6 +101,7 @@ bool ps2_controller_init() {
     if ((get_status() & PS2_CONTROLLER_STATUS_SYSTEM_BIT) != PS2_CONTROLLER_STATUS_SYSTEM_BIT)
         kpanic("PS/2 controller hasn't been checked while POST");
 
+#ifdef CONFIG_PS2_CONTROLLER_INIT
     send_command(PS2_CONTROLLER_DISABLE_PS_PORT_1, PS2_PORT_FIRST);
     send_command(PS2_CONTROLLER_DISABLE_PS_PORT_2, PS2_PORT_SECOND);
 
@@ -142,6 +143,7 @@ bool ps2_controller_init() {
     send_data_command(PS2_CONTROLLER_WRITE_CONFIGURATION, config, PS2_PORT_FIRST);
     ps2_controller_working = true;
     ps2_controller_has_second_port = true;
+#endif
 
     ktimer_add_task(&timeout_task);
     return true;
